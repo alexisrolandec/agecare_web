@@ -40,6 +40,27 @@ export default function AdminConsole() {
   const [productsList, setProductsList] = useState<any[]>([]);
   const [moderationList, setModerationList] = useState<any[]>([]);
 
+  // Estados para Juegos y Apps
+  const [gamesAppsList, setGamesAppsList] = useState<any[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gameTypeFilter, setGameTypeFilter] = useState("all");
+
+  // Estado para el modal de Crear/Editar
+  const [isGameModalOpen, setIsGameModalOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<any>(null);
+  const [gameFormData, setGameFormData] = useState({
+    title: "",
+    slug: "",
+    description: "",
+    item_type: "game",
+    category: "Estimulación cognitiva",
+    min_tier: "gratuito",
+    is_active: true,
+    featured: false,
+    target_url: "",
+    icon_url: "",
+  });
+  
   const apiFetch = useCallback(
     async (path: string, options: RequestInit = {}) => {
       const headers = new Headers(options.headers || {});
@@ -51,6 +72,95 @@ export default function AdminConsole() {
     },
     [token]
   );
+
+  const fetchGamesAppsData = useCallback(async () => {
+  if (!token) return;
+  setGamesLoading(true);
+  try {
+    const url = gameTypeFilter === "all" 
+      ? `${API_BASE}/games-apps/` 
+      : `${API_BASE}/games-apps/?item_type=${gameTypeFilter}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setGamesAppsList(data);
+    }
+  } catch (err) {
+    console.error("Error al cargar juegos y apps:", err);
+  } finally {
+    setGamesLoading(false);
+  }
+}, [token, gameTypeFilter]);
+
+useEffect(() => {
+  if (activeView === "juegos" && token) {
+    fetchGamesAppsData();
+  }
+}, [activeView, token, fetchGamesAppsData]);
+
+const handleSaveGameApp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!token) return;
+  try {
+    const isEdit = !!editingGame;
+    const url = isEdit 
+      ? `${API_BASE}/games-apps/${editingGame.id}` 
+      : `${API_BASE}/games-apps/`;
+    const method = isEdit ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(gameFormData),
+    });
+
+    if (res.ok) {
+      setIsGameModalOpen(false);
+      setEditingGame(null);
+      fetchGamesAppsData();
+    } else {
+      const err = await res.json();
+      alert(err.detail || "Error al guardar");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error de conexión");
+  }
+};
+
+const handleDeleteGameApp = async (id: number) => {
+  if (!confirm("¿Deseas eliminar este elemento?")) return;
+  try {
+    const res = await fetch(`${API_BASE}/games-apps/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) fetchGamesAppsData();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleToggleGameStatus = async (item: any) => {
+  try {
+    const res = await fetch(`${API_BASE}/games-apps/${item.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ is_active: !item.is_active }),
+    });
+    if (res.ok) fetchGamesAppsData();
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   useEffect(() => {
     const savedToken = sessionStorage.getItem("agecare_access_token");
@@ -563,19 +673,267 @@ export default function AdminConsole() {
 
           {/* VISTA 7: JUEGOS Y APPS */}
           {activeView === "juegos" && (
-            <div className="bg-white border rounded-[14px] p-5 shadow-sm" style={{ borderColor: "var(--line)" }}>
-              <h3 className="text-base font-bold mb-1">Catálogo de Estimulación Cognitiva</h3>
-              <p className="text-xs text-[#8b95a3] mb-4">Módulo de Entretenimiento para el perfil Adulto Mayor.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="border p-3.5 rounded-lg">
-                  <div className="font-bold text-sm">🧠 Memoria Activa</div>
-                  <div className="text-xs text-[#5b6573] mt-1">1.240 usuarios activos · Modo alto contraste</div>
+            <div className="space-y-4">
+              {/* Cabecera y acciones */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white border rounded-[14px] p-5 shadow-sm" style={{ borderColor: "var(--line)" }}>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Catálogo de Juegos y Aplicaciones</h3>
+                  <p className="text-xs text-[#8b95a3] mt-0.5">Administra los módulos de estimulación cognitiva y bienestar ofrecidos en AgeCare.</p>
                 </div>
-                <div className="border p-3.5 rounded-lg">
-                  <div className="font-bold text-sm">🎵 Director Musical</div>
-                  <div className="text-xs text-[#5b6573] mt-1">980 usuarios activos · Sincronización S3 activa</div>
+                <div className="flex items-center gap-2.5">
+                  <select
+                    value={gameTypeFilter}
+                    onChange={(e) => setGameTypeFilter(e.target.value)}
+                    className="text-xs border rounded-lg px-3 py-2 bg-white text-gray-700 outline-none focus:border-blue-500"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <option value="all">Todos los tipos</option>
+                    <option value="game">Solo Juegos</option>
+                    <option value="app">Solo Apps</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      setEditingGame(null);
+                      setGameFormData({
+                        title: "",
+                        slug: "",
+                        description: "",
+                        item_type: "game",
+                        category: "Estimulación cognitiva",
+                        min_tier: "gratuito",
+                        is_active: true,
+                        featured: false,
+                        target_url: "",
+                        icon_url: "",
+                      });
+                      setIsGameModalOpen(true);
+                    }}
+                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                  >
+                    + Nuevo Item
+                  </button>
                 </div>
               </div>
+
+              {/* Tabla / Listado */}
+              <div className="bg-white border rounded-[14px] shadow-sm overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                {gamesLoading ? (
+                  <div className="p-8 text-center text-xs text-gray-500">Cargando catálogo...</div>
+                ) : gamesAppsList.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-gray-500">No hay juegos ni aplicaciones registradas aún.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b bg-gray-50/75 text-gray-600 font-semibold" style={{ borderColor: "var(--line)" }}>
+                          <th className="p-3.5">Título / Slug</th>
+                          <th className="p-3.5">Tipo</th>
+                          <th className="p-3.5">Categoría</th>
+                          <th className="p-3.5">Plan Mínimo</th>
+                          <th className="p-3.5 text-center">Destacado</th>
+                          <th className="p-3.5 text-center">Estado</th>
+                          <th className="p-3.5 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y text-gray-700" style={{ borderColor: "var(--line)" }}>
+                        {gamesAppsList.map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50/50 transition">
+                            <td className="p-3.5">
+                              <div className="font-bold text-gray-900">{item.title}</div>
+                              <div className="text-[11px] text-gray-400 font-mono">{item.slug}</div>
+                            </td>
+                            <td className="p-3.5">
+                              <span className={`px-2 py-0.5 rounded-full font-medium ${item.item_type === "game" ? "bg-indigo-50 text-indigo-600" : "bg-teal-50 text-teal-600"}`}>
+                                {item.item_type === "game" ? "🎮 Juego" : "📱 App"}
+                              </span>
+                            </td>
+                            <td className="p-3.5">{item.category}</td>
+                            <td className="p-3.5 capitalize font-medium">{item.min_tier}</td>
+                            <td className="p-3.5 text-center">
+                              {item.featured ? <span className="text-amber-500 font-bold">★ Sí</span> : <span className="text-gray-300">No</span>}
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <button
+                                onClick={() => handleToggleGameStatus(item)}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
+                                  item.is_active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-500 border border-gray-200"
+                                }`}
+                              >
+                                {item.is_active ? "Activo" : "Inactivo"}
+                              </button>
+                            </td>
+                            <td className="p-3.5 text-right space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingGame(item);
+                                  setGameFormData({
+                                    title: item.title,
+                                    slug: item.slug,
+                                    description: item.description || "",
+                                    item_type: item.item_type,
+                                    category: item.category,
+                                    min_tier: item.min_tier,
+                                    is_active: item.is_active,
+                                    featured: item.featured,
+                                    target_url: item.target_url || "",
+                                    icon_url: item.icon_url || "",
+                                  });
+                                  setIsGameModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:underline font-semibold"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGameApp(item.id)}
+                                className="text-red-500 hover:underline font-semibold"
+                              >
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Crear / Editar */}
+              {isGameModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                  <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl border" style={{ borderColor: "var(--line)" }}>
+                    <h4 className="text-base font-bold text-gray-900 mb-1">
+                      {editingGame ? "Editar Módulo" : "Nuevo Juego o Aplicación"}
+                    </h4>
+                    <p className="text-xs text-gray-500 mb-4">Completa la información que verán los usuarios en la aplicación.</p>
+
+                    <form onSubmit={handleSaveGameApp} className="space-y-3.5 text-xs">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-gray-600 font-semibold mb-1">Título</label>
+                          <input
+                            type="text"
+                            required
+                            value={gameFormData.title}
+                            onChange={(e) => setGameFormData({ ...gameFormData, title: e.target.value })}
+                            placeholder="ej. Memoria Pro"
+                            className="w-full border rounded-lg p-2 outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 font-semibold mb-1">Slug identificador</label>
+                          <input
+                            type="text"
+                            required
+                            disabled={!!editingGame}
+                            value={gameFormData.slug}
+                            onChange={(e) => setGameFormData({ ...gameFormData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                            placeholder="ej. memoria-pro"
+                            className="w-full border rounded-lg p-2 outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-600 font-semibold mb-1">Descripción</label>
+                        <textarea
+                          rows={2}
+                          value={gameFormData.description}
+                          onChange={(e) => setGameFormData({ ...gameFormData, description: e.target.value })}
+                          placeholder="Breve resumen del objetivo cognitivo o funcional..."
+                          className="w-full border rounded-lg p-2 outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-gray-600 font-semibold mb-1">Tipo</label>
+                          <select
+                            value={gameFormData.item_type}
+                            onChange={(e) => setGameFormData({ ...gameFormData, item_type: e.target.value as any })}
+                            className="w-full border rounded-lg p-2 bg-white outline-none focus:border-blue-500"
+                          >
+                            <option value="game">Juego</option>
+                            <option value="app">App</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 font-semibold mb-1">Categoría</label>
+                          <input
+                            type="text"
+                            required
+                            value={gameFormData.category}
+                            onChange={(e) => setGameFormData({ ...gameFormData, category: e.target.value })}
+                            placeholder="ej. Memoria"
+                            className="w-full border rounded-lg p-2 outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 font-semibold mb-1">Plan Mínimo</label>
+                          <select
+                            value={gameFormData.min_tier}
+                            onChange={(e) => setGameFormData({ ...gameFormData, min_tier: e.target.value as any })}
+                            className="w-full border rounded-lg p-2 bg-white outline-none focus:border-blue-500 capitalize"
+                          >
+                            <option value="gratuito">Gratuito</option>
+                            <option value="dorado">Dorado</option>
+                            <option value="platino">Platino</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-600 font-semibold mb-1">URL de Destino / Ejecución</label>
+                        <input
+                          type="url"
+                          value={gameFormData.target_url}
+                          onChange={(e) => setGameFormData({ ...gameFormData, target_url: e.target.value })}
+                          placeholder="https://..."
+                          className="w-full border rounded-lg p-2 outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-5 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={gameFormData.is_active}
+                            onChange={(e) => setGameFormData({ ...gameFormData, is_active: e.target.checked })}
+                            className="rounded text-blue-600"
+                          />
+                          <span className="font-semibold text-gray-700">Activo</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={gameFormData.featured}
+                            onChange={(e) => setGameFormData({ ...gameFormData, featured: e.target.checked })}
+                            className="rounded text-blue-600"
+                          />
+                          <span className="font-semibold text-gray-700">Destacar en inicio</span>
+                        </label>
+                      </div>
+
+                      <div className="flex justify-end gap-2.5 pt-3 border-t mt-4" style={{ borderColor: "var(--line)" }}>
+                        <button
+                          type="button"
+                          onClick={() => setIsGameModalOpen(false)}
+                          className="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                        >
+                          {editingGame ? "Guardar cambios" : "Crear"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
