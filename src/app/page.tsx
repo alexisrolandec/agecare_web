@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import VistaJuegosConPrevia from "./VistaJuegosConPrevia";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api/v1/admin";
 
@@ -45,6 +46,12 @@ export default function AdminConsole() {
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gameTypeFilter, setGameTypeFilter] = useState("all");
 
+  const [activeGamesList, setActiveGamesList] = useState<any[]>([]);
+  const [activeGamesLoading, setActiveGamesLoading] = useState(false);
+
+  // Interruptor entre interfaces
+  const [mostrarVistaConPrevia, setMostrarVistaConPrevia] = useState(false);
+
   // Estado para el modal de Crear/Editar
   const [isGameModalOpen, setIsGameModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<any>(null);
@@ -60,7 +67,7 @@ export default function AdminConsole() {
     target_url: "",
     icon_url: "",
   });
-  
+
   const apiFetch = useCallback(
     async (path: string, options: RequestInit = {}) => {
       const headers = new Headers(options.headers || {});
@@ -73,94 +80,160 @@ export default function AdminConsole() {
     [token]
   );
 
+  // GET /games-apps/  ->  GameAppPage { items, total, page, page_size }
   const fetchGamesAppsData = useCallback(async () => {
-  if (!token) return;
-  setGamesLoading(true);
-  try {
-    const url = gameTypeFilter === "all" 
-      ? `${API_BASE}/games-apps/` 
-      : `${API_BASE}/games-apps/?item_type=${gameTypeFilter}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setGamesAppsList(data);
+    if (!token) return;
+    setGamesLoading(true);
+    try {
+      const url = gameTypeFilter === "all"
+        ? `/games-apps/?page_size=200`
+        : `/games-apps/?item_type=${gameTypeFilter}&page_size=200`;
+      
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setGamesAppsList(data.items || []);
+      }
+    } catch (err) {
+      console.error("Error al cargar juegos y apps:", err);
+    } finally {
+      setGamesLoading(false);
     }
-  } catch (err) {
-    console.error("Error al cargar juegos y apps:", err);
-  } finally {
-    setGamesLoading(false);
-  }
-}, [token, gameTypeFilter]);
+  }, [token, gameTypeFilter, apiFetch]);
 
-useEffect(() => {
-  if (activeView === "juegos" && token) {
-    fetchGamesAppsData();
-  }
-}, [activeView, token, fetchGamesAppsData]);
+  // GET /games-apps/active  ->  ActiveGamesOut { items, count, updated_at }
+  // Sin token: el backend lo deja público para la app del adulto mayor.
+  const fetchActiveGamesApps = useCallback(async () => {
+    setActiveGamesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/games-apps/active`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveGamesList(data.items || []);
+      }
+    } catch (err) {
+      console.error("Error al cargar módulos activos:", err);
+    } finally {
+      setActiveGamesLoading(false);
+    }
+  }, []);
 
-const handleSaveGameApp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!token) return;
-  try {
-    const isEdit = !!editingGame;
-    const url = isEdit 
-      ? `${API_BASE}/games-apps/${editingGame.id}` 
-      : `${API_BASE}/games-apps/`;
-    const method = isEdit ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(gameFormData),
-    });
-
-    if (res.ok) {
-      setIsGameModalOpen(false);
-      setEditingGame(null);
+  useEffect(() => {
+    if (activeView === "juegos" && token) {
       fetchGamesAppsData();
-    } else {
-      const err = await res.json();
-      alert(err.detail || "Error al guardar");
+      fetchActiveGamesApps();
     }
-  } catch (err) {
-    console.error(err);
-    alert("Error de conexión");
-  }
-};
+  }, [activeView, token, fetchGamesAppsData, fetchActiveGamesApps]);
 
-const handleDeleteGameApp = async (id: number) => {
-  if (!confirm("¿Deseas eliminar este elemento?")) return;
-  try {
-    const res = await fetch(`${API_BASE}/games-apps/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) fetchGamesAppsData();
-  } catch (err) {
-    console.error(err);
-  }
-};
+  // POST o PUT /games-apps/
+  const handleSaveGameApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const isEdit = !!editingGame;
+      const path = isEdit ? `/games-apps/${editingGame.id}` : `/games-apps/`;
+      const method = isEdit ? "PUT" : "POST";
 
-const handleToggleGameStatus = async (item: any) => {
-  try {
-    const res = await fetch(`${API_BASE}/games-apps/${item.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ is_active: !item.is_active }),
-    });
-    if (res.ok) fetchGamesAppsData();
-  } catch (err) {
-    console.error(err);
-  }
-};
+      const res = await apiFetch(path, {
+        method,
+        body: JSON.stringify(gameFormData),
+      });
+
+      if (res.ok) {
+        setIsGameModalOpen(false);
+        setEditingGame(null);
+        fetchGamesAppsData();
+        fetchActiveGamesApps();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Error al guardar");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión");
+    }
+  };
+
+  // DELETE /games-apps/{id}
+  const handleDeleteGameApp = async (id: string) => {
+    if (!confirm("¿Deseas eliminar este elemento?")) return;
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/games-apps/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchGamesAppsData();
+        fetchActiveGamesApps();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "No se pudo eliminar.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // POST /games-apps/{id}/toggle
+  const handleToggleGameStatus = async (item: { id: string }) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/games-apps/${item.id}/toggle`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        fetchGamesAppsData();
+        fetchActiveGamesApps();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "No se pudo cambiar el estado.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // POST /games-apps/active (BulkActivateIn)
+  const handleBulkActivate = async (slugs: string[], deactivateOthers: boolean = true) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/games-apps/active`, {
+        method: "POST",
+        body: JSON.stringify({ slugs, deactivate_others: deactivateOthers }),
+      });
+      if (res.ok) {
+        fetchGamesAppsData();
+        fetchActiveGamesApps();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Error al aplicar rotación masiva.");
+      }
+    } catch (err) {
+      console.error("Error en bulk activate:", err);
+    }
+  };
+
+  // PUT /games-apps/order (ReorderIn)
+  const handleReorderGames = async (items: { slug: string; sort_order: number }[]) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/games-apps/order`, {
+        method: "PUT",
+        body: JSON.stringify({ items }),
+      });
+      if (res.ok) {
+        fetchGamesAppsData();
+        fetchActiveGamesApps();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Error al guardar el nuevo orden.");
+      }
+    } catch (err) {
+      console.error("Error reordenando:", err);
+    }
+  };
+
+  // ---------------- AUTENTICACIÓN Y OTRAS VISTAS ----------------
 
   useEffect(() => {
     const savedToken = sessionStorage.getItem("agecare_access_token");
@@ -674,7 +747,30 @@ const handleToggleGameStatus = async (item: any) => {
           {/* VISTA 7: JUEGOS Y APPS */}
           {activeView === "juegos" && (
             <div className="space-y-4">
-              {/* Cabecera y acciones */}
+              {/* Interruptor entre interfaces */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setMostrarVistaConPrevia((valorActual) => !valorActual)}
+                  className="text-xs font-semibold px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50 transition"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  {mostrarVistaConPrevia ? "← Ver interfaz original" : "Probar interfaz con vista previa y rotación →"}
+                </button>
+              </div>
+
+              {mostrarVistaConPrevia ? (
+                <VistaJuegosConPrevia
+                  items={gamesAppsList}
+                  loading={gamesLoading}
+                  activeItems={activeGamesList}
+                  activeLoading={activeGamesLoading}
+                  onToggle={handleToggleGameStatus}
+                  onBulkActivate={handleBulkActivate}
+                  onReorder={handleReorderGames}
+                />
+              ) : (
+              <>
+              {/* Cabecera y acciones originales */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white border rounded-[14px] p-5 shadow-sm" style={{ borderColor: "var(--line)" }}>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Catálogo de Juegos y Aplicaciones</h3>
@@ -933,6 +1029,8 @@ const handleToggleGameStatus = async (item: any) => {
                     </form>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           )}
