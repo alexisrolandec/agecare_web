@@ -15,7 +15,6 @@ type ItemJuegoApp = {
   icon_url?: string | null;
 };
 
-// Se actualizó para recibir las funciones del AdminConsole
 type Props = {
   items?: ItemJuegoApp[];
   loading?: boolean;
@@ -26,20 +25,6 @@ type Props = {
   onReorder?: (items: { slug: string; sort_order: number }[]) => Promise<void>;
 };
 
-/** Datos de prueba: se usan cuando la API todavía no devuelve nada. */
-const JUEGOS_DEMO: ItemJuegoApp[] = [
-  { id: 1, title: "Memoria Pro", slug: "memoria-pro", description: "Pares de cartas con dificultad progresiva.", item_type: "game", category: "Memoria", is_active: true, featured: true, target_url: "https://example.com/juegos/memoria-pro" },
-  { id: 2, title: "Sudoku Amable", slug: "sudoku-amable", description: "Sudoku con números grandes y pistas ilimitadas.", item_type: "game", category: "Lógica", is_active: true, featured: false, target_url: "https://example.com/juegos/sudoku-amable" },
-  { id: 3, title: "Palabras Cruzadas", slug: "palabras-cruzadas", description: "Crucigramas cortos con vocabulario cotidiano.", item_type: "game", category: "Lenguaje",  is_active: true, featured: true, target_url: "https://example.com/juegos/palabras-cruzadas" },
-  { id: 4, title: "Ritmo y Memoria", slug: "ritmo-memoria", description: "Repite secuencias de sonido y color.", item_type: "game", category: "Atención",  is_active: false, featured: false, target_url: "https://example.com/juegos/ritmo-memoria" },
-  { id: 5, title: "Cálculo Diario", slug: "calculo-diario", description: "Cinco operaciones al día, sin reloj.", item_type: "game", category: "Cálculo",  is_active: true, featured: false, target_url: "https://example.com/juegos/calculo-diario" },
-  { id: 6, title: "Rutas de Barrio", slug: "rutas-de-barrio", description: "Orientación espacial sobre mapas simples.", item_type: "game", category: "Orientación", is_active: true, featured: false, target_url: "https://example.com/juegos/rutas-de-barrio" },
-  { id: 7, title: "Caras y Nombres", slug: "caras-y-nombres", description: "Asocia rostros con nombres y parentescos.", item_type: "game", category: "Memoria", is_active: false, featured: true, target_url: "https://example.com/juegos/caras-y-nombres" },
-  { id: 8, title: "Respira Conmigo", slug: "respira-conmigo", description: "Guía de respiración pausada de tres minutos.", item_type: "app", category: "Bienestar", is_active: true, featured: false, target_url: "https://example.com/apps/respira-conmigo" },
-  { id: 9, title: "Agenda de Medicamentos", slug: "agenda-medicamentos", description: "Recordatorios con confirmación de toma.", item_type: "app", category: "Salud",  is_active: true, featured: true, target_url: "https://example.com/apps/agenda-medicamentos" },
-  { id: 10, title: "Diario de Ánimo", slug: "diario-de-animo", description: "Registro diario en tres toques.", item_type: "app", category: "Bienestar", is_active: true, featured: false, target_url: "https://example.com/apps/diario-de-animo" },
-];
-
 export default function VistaJuegosConPrevia({ 
   items, 
   loading = false,
@@ -49,13 +34,17 @@ export default function VistaJuegosConPrevia({
   onBulkActivate,
   onReorder
 }: Props) {
+  // Ahora usamos estrictamente los datos que vienen del backend
   const datosIniciales = useMemo(
-    () => (items && items.length > 0 ? items : JUEGOS_DEMO),
+    () => (items ? items : []),
     [items]
   );
 
   const [lista, setLista] = useState<ItemJuegoApp[]>(datosIniciales);
-  const [seleccionadoId, setSeleccionadoId] = useState<string | number>(datosIniciales[0].id);
+  // Protegemos el estado inicial por si el arreglo viene vacío
+  const [seleccionadoId, setSeleccionadoId] = useState<string | number | null>(
+    datosIniciales.length > 0 ? datosIniciales[0].id : null
+  );
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | number | null>(null);
   const [errorPrevia, setErrorPrevia] = useState(false);
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -63,8 +52,10 @@ export default function VistaJuegosConPrevia({
   useEffect(() => {
     setLista(datosIniciales);
     // Si la lista cambia y el seleccionado no existe en la nueva lista, seleccionar el primero
-    if (datosIniciales.length > 0 && !datosIniciales.find(i => i.id === seleccionadoId)) {
+    if (datosIniciales.length > 0 && (!seleccionadoId || !datosIniciales.find(i => i.id === seleccionadoId))) {
       setSeleccionadoId(datosIniciales[0].id);
+    } else if (datosIniciales.length === 0) {
+      setSeleccionadoId(null);
     }
   }, [datosIniciales, seleccionadoId]);
 
@@ -105,7 +96,7 @@ export default function VistaJuegosConPrevia({
       // Llamado a la API
       await onToggle({ id: String(id) });
     } else {
-      // Comportamiento local (demo)
+      // Comportamiento local de fallback
       setLista((actual) =>
         actual.map((i) => (i.id === id ? { ...i, is_active: activar } : i))
       );
@@ -122,6 +113,15 @@ export default function VistaJuegosConPrevia({
     return (
       <div className="bg-white border rounded-[14px] p-8 text-center text-xs text-gray-500 shadow-sm" style={{ borderColor: "var(--line)" }}>
         Cargando catálogo...
+      </div>
+    );
+  }
+
+  // Si no hay datos (porque falló el fetch o la DB está vacía) mostramos un mensaje claro
+  if (!loading && lista.length === 0) {
+    return (
+      <div className="bg-white border rounded-[14px] p-8 text-center text-xs text-gray-500 shadow-sm" style={{ borderColor: "var(--line)" }}>
+        No hay juegos ni aplicaciones disponibles. Revisa la conexión con el servidor.
       </div>
     );
   }

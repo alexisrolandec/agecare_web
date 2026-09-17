@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import VistaJuegosConPrevia from "./VistaJuegosConPrevia";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api/v1/admin";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1/admin";
 
 const PERIODS = [
   { k: "today", n: "Hoy" },
@@ -92,7 +92,9 @@ export default function AdminConsole() {
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
-        setGamesAppsList(data.items || []);
+        // Le decimos a React que si recibe una lista directa, la use. 
+        // Si no, que busque 'items'.
+        setGamesAppsList(Array.isArray(data) ? data : data.items || []);
       }
     } catch (err) {
       console.error("Error al cargar juegos y apps:", err);
@@ -103,10 +105,12 @@ export default function AdminConsole() {
 
   // GET /games-apps/active  ->  ActiveGamesOut { items, count, updated_at }
   // Sin token: el backend lo deja público para la app del adulto mayor.
+  // GET /games-apps/active  ->  ActiveGamesOut { items, count, updated_at }
   const fetchActiveGamesApps = useCallback(async () => {
     setActiveGamesLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/games-apps/active`);
+      // ✅ Usamos apiFetch en lugar de fetch puro para enviar el token
+      const res = await apiFetch(`/games-apps/active`);
       if (res.ok) {
         const data = await res.json();
         setActiveGamesList(data.items || []);
@@ -116,7 +120,7 @@ export default function AdminConsole() {
     } finally {
       setActiveGamesLoading(false);
     }
-  }, []);
+  }, [apiFetch]); 
 
   useEffect(() => {
     if (activeView === "juegos" && token) {
