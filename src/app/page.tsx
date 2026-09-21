@@ -884,12 +884,6 @@ export default function AdminConsole() {
                               >
                                 Editar
                               </button>
-                              <button
-                                onClick={() => handleDeleteGameApp(item.id)}
-                                className="text-red-500 hover:underline font-semibold"
-                              >
-                                Eliminar
-                              </button>
                             </td>
                           </tr>
                         ))}
@@ -984,13 +978,15 @@ export default function AdminConsole() {
                       </div>
 
                       <div>
-                        <label className="block text-gray-600 font-semibold mb-1">URL de Destino / Ejecución</label>
+                        <label className="block text-gray-600 font-semibold mb-1">
+                          URL de Destino / Ejecución
+                        </label>
                         <input
                           type="url"
                           value={gameFormData.target_url}
-                          onChange={(e) => setGameFormData({ ...gameFormData, target_url: e.target.value })}
+                          readOnly
                           placeholder="https://..."
-                          className="w-full border rounded-lg p-2 outline-none focus:border-blue-500"
+                          className="w-full border rounded-lg p-2 outline-none bg-gray-100 text-gray-500 cursor-not-allowed"
                         />
                       </div>
 
