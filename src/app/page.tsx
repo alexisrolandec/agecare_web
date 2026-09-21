@@ -758,7 +758,7 @@ export default function AdminConsole() {
                   className="text-xs font-semibold px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50 transition"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  {mostrarVistaConPrevia ? "← Ver interfaz original" : "Probar interfaz con vista previa y rotación →"}
+                  {mostrarVistaConPrevia ? "Volver a la vista original" : "Ver vista con previsualización"}
                 </button>
               </div>
 
