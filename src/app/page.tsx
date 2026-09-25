@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import VistaJuegosConPrevia from "./VistaJuegosConPrevia";
+import ThemeToggle from "./ThemeToggle";
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1/admin";
 
@@ -363,7 +365,7 @@ export default function AdminConsole() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-[#1f2733]">Acceso administrativo</h1>
-              <p className="text-xs text-[#5b6573] mt-0.5">Consola AgeCare · Wellq Co</p>
+              <p className="text-xs text-[#5b6573] mt-0.5">Consola AgeCare</p>
             </div>
           </div>
           <form onSubmit={handleLogin} className="grid gap-4 text-sm">
@@ -473,7 +475,7 @@ export default function AdminConsole() {
             </div>
             <div>
               <div className="text-[#e8edf4] text-[12.5px] font-semibold leading-tight">{adminUser ? adminUser.full_name : "Administrador"}</div>
-              <div className="text-[10.5px] text-[#7d8898]">{adminUser ? `${adminUser.role} · Wellq Co` : "Staff"}</div>
+              <div className="text-[10.5px] text-[#7d8898]">{adminUser ? `${adminUser.role}` : "Staff"}</div>
             </div>
           </div>
           <button
@@ -487,18 +489,19 @@ export default function AdminConsole() {
 
       {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-40 border-b px-7 py-3.5 flex items-center gap-3.5 backdrop-blur bg-[#f4f6f9]/90" style={{ borderColor: "var(--line)" }}>
+        <header className="sticky top-0 z-40 border-b px-7 py-3.5 flex items-center gap-3.5 backdrop-blur" style={{ backgroundColor: "var(--bg)", borderColor: "var(--line)" }}>
           <div>
-            <h1 className="text-[17px] font-bold tracking-tight capitalize">{activeView.replace("-", " ")}</h1>
-            <p className="text-[11.5px] text-[#8b95a3]">Consola administrativa · Wellq Co</p>
+            <h1 className="text-[17px] font-bold tracking-tight capitalize" style={{ color: "var(--ink)" }}>{activeView.replace("-", " ")}</h1>
+            <p className="text-[11.5px]" style={{ color: "var(--ink-secondary)" }}>Consola administrativa</p>
           </div>
           <div className="flex-1" />
-          <span className="text-[11px] font-bold rounded-lg px-2.5 py-1 border bg-[#e7eefb] text-[#2b55a8] border-[#cddcf7]">
+          <ThemeToggle />
+          <span className="text-[11px] font-bold rounded-lg px-2.5 py-1 border" style={{ backgroundColor: "var(--panel)", borderColor: "var(--line)", color: "var(--brand)" }}>
             Neon PostgreSQL
           </span>
         </header>
 
-        <main className="p-7 max-w-[1240px] w-full mx-auto space-y-4">
+        <main className="p-7 max-w-[1240px] w-full mx-auto space-y-4" style={{ backgroundColor: "var(--bg)" }}>
           {/* VISTA 1: COMERCIAL */}
           {activeView === "comercial" && (
             <>
