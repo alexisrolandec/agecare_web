@@ -102,3 +102,45 @@ html.dark .bg-teal-50 {
   color: #5eead4 !important;
   border: 1px solid rgba(20, 184, 166, 0.35) !important;
 }
+
+/* ===================================================
+   MODO OSCURO - PANTALLA DE ACCESO / LOGIN
+   =================================================== */
+
+/* Tarjeta contenedora del formulario de login */
+html.dark form {
+  color: var(--ink);
+}
+
+/* Campos de entrada (inputs) en login y resto de la app */
+html.dark input[type="email"],
+html.dark input[type="password"],
+html.dark input[type="text"],
+html.dark textarea {
+  background-color: var(--panel-muted) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+html.dark input::placeholder {
+  color: var(--ink-muted) !important;
+}
+
+/* Enfoque de los campos */
+html.dark input:focus {
+  border-color: var(--brand) !important;
+}
+
+/* Etiquetas y títulos específicos con colores hex fijos del login */
+html.dark .text-\[\#1f2733\] {
+  color: var(--ink) !important;
+}
+
+html.dark .text-\[\#5b6573\] {
+  color: var(--ink-secondary) !important;
+}
+
+html.dark .border-\[\#cfd6df\],
+html.dark .border-\[\#e4e8ee\] {
+  border-color: var(--line) !important;
+}

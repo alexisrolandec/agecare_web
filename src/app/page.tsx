@@ -357,7 +357,11 @@ export default function AdminConsole() {
 
   if (!token) {
     return (
-      <section className="min-h-screen w-full flex items-center justify-center p-6" style={{ backgroundColor: "var(--bg)" }}>
+      <section className="min-h-screen w-full flex flex-col items-center justify-center p-6 relative" style={{ backgroundColor: "var(--bg)" }}>
+        <div className="absolute top-6 right-6">
+          <ThemeToggle />
+        </div>
+
         <div className="w-full max-w-[420px] bg-white border border-[#e4e8ee] rounded-[14px] p-8 shadow-sm">
           <div className="flex items-center gap-2.5 mb-7">
             <div className="w-8 h-8 rounded-[10px] text-white flex items-center justify-center font-extrabold text-base" style={{ backgroundColor: "var(--brand)" }}>
